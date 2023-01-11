@@ -1,10 +1,46 @@
 const AWS = require('aws-sdk');
-const { randomUUID } = require('crypto');
+const jobSettings = require('./jobSettings.json');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpeg = require('fluent-ffmpeg');
+ffmpeg.setFfmpegPath(ffmpegPath);
 const fs = require('fs');
-const jobSettings = require('./jobSettings.json')
+
+const ffmpegSync = (video, S3KeyGif, s3) => {
+  console.log('S3KeyGif', S3KeyGif);
+  return new Promise((resolve, reject) => {
+    ffmpeg(video)
+      .setDuration(1)
+      .withAspect('4:3')
+      .addOutputOptions('-fs', '1500k')
+      .fps(10)
+      .output(S3KeyGif)
+      .on('end', async function (err) {
+        if (!err) {
+          console.log('CONVERTED');
+          const S3KeyGif = `${Key}/Gif/${Key}.gif`;
+          const gif = await fs.createReadStream(S3KeyGif);
+          const gifParams = {
+            Bucket: 'duploservices-qa1-output-files-776536559867',
+            Key: `${S3KeyGif}`,
+            Body: gif,
+          };
+          const gifUpload = await s3.upload(gifParams).promise();
+          console.log('gifUpload', gifUpload);
+          fs.unlinkSync(S3KeyGif, (err) => {
+            if (err) {
+              console.log('err', err);
+            }
+          });
+        }
+      })
+      .on('error', function (err) {
+        console.log(err);
+      })
+      .run();
+  });
+};
 
 exports.handler = async (event) => {
-  
   const sourceS3Bucket = event.Records[0].s3.bucket.name;
   const sourceS3Key = event.Records[0].s3.object.key;
   const assetID = sourceS3Key;
@@ -39,17 +75,20 @@ exports.handler = async (event) => {
     // paths for converted videos
     jobSettings.Inputs[0].FileInput = sourceS3;
 
-    console.log('jobSettings.Settings.Inputs[0].FileInput', jobSettings.Inputs[0].FileInput);
-    const S3KeyWatermark = `${assetID}/MP4/${sourceS3Basename}`;
+    console.log(
+      'jobSettings.Settings.Inputs[0].FileInput',
+      jobSettings.Inputs[0].FileInput
+    );
+    const S3KeyWatermark = `${sourceS3Basename}/MP4/${sourceS3Basename}`;
     jobSettings.OutputGroups[0].OutputGroupSettings.FileGroupSettings.Destination = `${destinationS3}/${S3KeyWatermark}`;
     console.log('S3KeyWatermark', S3KeyWatermark);
 
-    const S3KeyThumbnails = `${assetID}/Thumbnails/${sourceS3Basename}`;
+    const S3KeyThumbnails = `${sourceS3Basename}/Thumbnails/${sourceS3Basename}`;
     jobSettings.OutputGroups[1].OutputGroupSettings.FileGroupSettings.Destination = `${destinationS3}/${S3KeyThumbnails}`;
     console.log('S3KeyThumbnails', S3KeyThumbnails);
 
-    console.log('jobSettings:');
-    console.log(JSON.stringify(jobSettings));
+    console.log('jobSettings:', Date.now());
+    console.log(JSON.stringify(jobSettings), Date.now());
 
     // Convert the video using AWS Elemental MediaConvert
     const job = await client
@@ -59,7 +98,20 @@ exports.handler = async (event) => {
         Settings: jobSettings,
       })
       .promise();
-    console.log('job', JSON.stringify(job));
+    console.log('job', JSON.stringify(job), Date.now());
+
+    // Create Gif from video
+    const S3KeyGif = `${sourceS3Basename}/Gif/${sourceS3Basename}.gif`;
+    console.log('S3KeyGif', S3KeyGif);
+    const s3 = new AWS.S3();
+    const params = {
+      Bucket: sourceS3Bucket,
+      Key: sourceS3Key,
+    };
+    console.log('params', params, Date.now());
+    const s3Stream = await s3.getObject(params).createReadStream();
+    console.log('s3Stream', s3Stream, Date.now());
+    await ffmpegSync(s3Stream, S3KeyGif, s3);
   } catch (e) {
     console.log(`Exception: ${e}`);
     statusCode = 500;
