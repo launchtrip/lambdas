@@ -3,8 +3,7 @@ const jobSettings = require('./jobSettings.json');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
-// const fs = require('fs');
-const mockEvent = require('./event_example.json');
+const fs = require('fs');
 
 // create media convert job
 const mediaConvertJob = async (record) => {
@@ -52,51 +51,62 @@ const mediaConvertJob = async (record) => {
 
 const ffmpegJob = async (record) => {
   try {
+    const outputFile = fs.createWriteStream('/tmp/gif.gif');
     const s3 = new AWS.S3();
     const sourceS3Bucket = record.s3.bucket.name;
     const sourceS3Key = record.s3.object.key;
     const S3KeyGif = `${sourceS3Key}/Gif/${sourceS3Key}.gif`;
     console.log('start get file');
     const video = await s3.getObject({ Bucket: sourceS3Bucket, Key: sourceS3Key }).createReadStream();
-    console.log(video);
-    console.log('end get file');
+    console.log('end get file', video);
 
     // Use ffmpeg to convert the video to a GIF
     const gif = await new Promise((resolve, reject) => {
+      console.log('outputFile', outputFile);
       ffmpeg(video)
         .setDuration(1)
         .withAspect('4:3')
         .addOutputOptions('-fs', '1500k')
+        .format('gif')
         .fps(10)
-        // .outputOptions('-pix_fmt', 'rgb24')
-        // .outputOptions('-r', '10')
-        // .outputOptions('-f', 'gif')
-        // .output('test.gif')
-        .on('end', resolve)
-        .on('error', reject)
+        .output(outputFile)
+        .on('end', async function (err) {
+          if (err) {
+            console.error(err);
+            throw new Error(err);
+          }
+          console.log('Video converted to GIF successfully!');
+          resolve('Video converted to GIF successfully!');
+        })
+        .on('error', function (err) {
+          console.error(err);
+          reject(err);
+        })
         .run();
     });
 
-    console.log(gif);
-
+    if (fs.existsSync('/tmp/gif.gif')) {
+      console.log('File exists');
+      const gifFile = fs.createReadStream('/tmp/gif.gif');
+      await s3
+        .upload({
+          Body: gifFile,
+          Bucket: process.env.DestinationBucket,
+          Key: S3KeyGif,
+          ContentType: 'image/gif',
+        })
+        .promise();
+    } else {
+      console.log('file not exist')
+    }
     // Upload the GIF to S3
-    await s3
-      .putObject({
-        Body: gif,
-        Bucket: sourceS3Bucket,
-        Key: S3KeyGif,
-        ContentType: 'image/gif',
-      })
-      .promise();
   } catch (err) {
     console.log('Error in generate Gif File', err);
   }
 };
 
-const handler = async (event) => {
+exports.handler = async (event) => {
   for (let i = 0; i < event.Records.length; i++) {
     await Promise.all([mediaConvertJob(event.Records[i]), ffmpegJob(event.Records[i])]);
   }
 };
-
-handler(mockEvent);

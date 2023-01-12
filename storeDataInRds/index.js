@@ -13,7 +13,7 @@ exports.handler = async (event) => {
 
     console.log({ sourceS3FileName, sourceS3BucketName, folderName, fileExtension });
 
-    const attributeName = fileExtension === '.mp4' ? 'videoUrl' : fileExtension === '.gif' ? 'animatedGifUrl' : 'thumbnailUrl';
+    const attributeName = fileExtension === 'mp4' ? 'videoUrl' : fileExtension === 'gif' ? 'animatedGifUrl' : 'thumbnailUrl';
 
     const fileUrl = `https://${sourceS3BucketName}.s3.${s3Object.awsRegion}.amazonaws.com/${sourceS3FileName}`;
     try {
