@@ -1,7 +1,7 @@
 const axios = require('axios');
 const mockEvent = require('./event_example.json');
 
-const handler = async (event) => {
+exports.handler = async (event) => {
   console.log(event);
   for (let i = 0; i < event.Records.length; i++) {
     const s3Object = event.Records[i];
@@ -27,5 +27,3 @@ const handler = async (event) => {
     }
   }
 };
-
-handler(mockEvent);
