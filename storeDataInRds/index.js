@@ -1,5 +1,4 @@
 const axios = require('axios');
-const mockEvent = require('./event_example.json');
 
 exports.handler = async (event) => {
   console.log(event);
