@@ -5,36 +5,26 @@ const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 const fs = require('fs');
 
-const ffmpegSync = (video, S3KeyGif, s3) => {
-  console.log('S3KeyGif', S3KeyGif);
+const ffmpegSync = (video) => {
+  console.log('Starting ffmpegSync');
   return new Promise((resolve, reject) => {
     ffmpeg(video)
       .setDuration(1)
       .withAspect('4:3')
       .addOutputOptions('-fs', '1500k')
       .fps(10)
-      .output(S3KeyGif)
+      .output('gifVideo.gif')
       .on('end', async function (err) {
-        if (!err) {
-          console.log('CONVERTED');
-          const S3KeyGif = `${Key}/Gif/${Key}.gif`;
-          const gif = await fs.createReadStream(S3KeyGif);
-          const gifParams = {
-            Bucket: 'duploservices-qa1-output-files-776536559867',
-            Key: `${S3KeyGif}`,
-            Body: gif,
-          };
-          const gifUpload = await s3.upload(gifParams).promise();
-          console.log('gifUpload', gifUpload);
-          fs.unlinkSync(S3KeyGif, (err) => {
-            if (err) {
-              console.log('err', err);
-            }
-          });
+        if (err) {
+          console.error(err);
+          throw new Error(err);
         }
+        console.log('Video converted to GIF successfully!');
+        resolve('Video converted to GIF successfully!');
       })
       .on('error', function (err) {
-        console.log(err);
+        console.error(err);
+        throw new Error(err);
       })
       .run();
   });
@@ -111,7 +101,15 @@ exports.handler = async (event) => {
     console.log('params', params, Date.now());
     const s3Stream = await s3.getObject(params).createReadStream();
     console.log('s3Stream', s3Stream, Date.now());
-    await ffmpegSync(s3Stream, S3KeyGif, s3);
+    const gifG = await ffmpegSync(s3Stream);
+    const gif = await fs.createReadStream('gifVideo.gif');
+    const gifParams = {
+      Bucket: process.env.DestinationBucket,
+      Key: S3KeyGif,
+      Body: gif,
+    };
+    const gifUpload = await s3.upload(gifParams).promise();
+    console.log('gifUpload', gifUpload, Date.now());
   } catch (e) {
     console.log(`Exception: ${e}`);
     statusCode = 500;
