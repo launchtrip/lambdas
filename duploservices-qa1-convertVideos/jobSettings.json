@@ -62,7 +62,7 @@
                             "FrameCaptureSettings": {
                                 "FramerateNumerator": 60,
                                 "FramerateDenominator": 1,
-                                "MaxCaptures": 2,
+                                "MaxCaptures": 1,
                                 "Quality": 80
                             }
                         }
