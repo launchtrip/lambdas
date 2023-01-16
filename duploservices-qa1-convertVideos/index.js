@@ -1,9 +1,9 @@
-const AWS = require('aws-sdk');
-const jobSettings = require('./jobSettings.json');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const ffmpeg = require('fluent-ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegPath);
-const fs = require('fs');
+import AWS from 'aws-sdk';
+import { jobSettings } from './jobSettings.js';
+import ffmpegPath from '@ffmpeg-installer/ffmpeg';
+import ffmpeg from 'fluent-ffmpeg';
+ffmpeg.setFfmpegPath(ffmpegPath.path);
+import fs from 'fs';
 import { spawn } from 'node:child_process';
 import gifsicle from 'gifsicle';
 
@@ -143,7 +143,7 @@ const ffmpegJob = async (record) => {
   }
 };
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
   for (let i = 0; i < event.Records.length; i++) {
     await Promise.all([
       mediaConvertJob(event.Records[i]),
