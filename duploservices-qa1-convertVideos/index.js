@@ -4,6 +4,8 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 const fs = require('fs');
+import { spawn } from 'node:child_process';
+import gifsicle from 'gifsicle';
 
 // create media convert job
 const mediaConvertJob = async (record) => {
@@ -49,6 +51,34 @@ const mediaConvertJob = async (record) => {
   }
 };
 
+const compressGif = async (gif) => {
+  const compressedGifAndWriteTheFile = await new Promise((resolve, reject) => {
+    const child = spawn(gifsicle, [
+      '-O3',
+      '-lossy=80',
+      gif,
+      '-o',
+      '/tmp/compressedGif.gif',
+    ]);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (data) => {
+      stdout += data;
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data;
+    });
+    child.on('close', (code) => {
+      if (code !== 0) {
+        console.error('stderr', stderr);
+        throw new Error(stderr);
+      }
+      resolve(stdout);
+    });
+  });
+  return compressedGifAndWriteTheFile;
+};
+
 const ffmpegJob = async (record) => {
   try {
     const outputFile = fs.createWriteStream('/tmp/gif.gif');
@@ -57,16 +87,21 @@ const ffmpegJob = async (record) => {
     const sourceS3Key = record.s3.object.key;
     const S3KeyGif = `${sourceS3Key}/Gif/${sourceS3Key}.gif`;
     console.log('start get file');
-    const video = await s3.getObject({ Bucket: sourceS3Bucket, Key: sourceS3Key }).createReadStream();
+    const video = await s3
+      .getObject({ Bucket: sourceS3Bucket, Key: sourceS3Key })
+      .createReadStream();
     console.log('end get file', video);
 
     // Use ffmpeg to convert the video to a GIF
-    const gif = await new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
       console.log('outputFile', outputFile);
       ffmpeg(video)
         .setDuration(1)
-        .withAspect('4:3')
-        .addOutputOptions('-fs', '1500k')
+        .withAspect('16:9')
+        .addOutputOptions(
+          '-filter:v',
+          '[0:v] fps=15,scale=540:-1:flags=lanczos,split [a][b];[a] palettegen [p];[b][p] paletteuse'
+        )
         .format('gif')
         .fps(10)
         .output(outputFile)
@@ -87,18 +122,20 @@ const ffmpegJob = async (record) => {
 
     if (fs.existsSync('/tmp/gif.gif')) {
       console.log('File exists');
-      const gifFile = fs.createReadStream('/tmp/gif.gif');
+      // use gifsicle to compress the gif
+      await compressGif('/tmp/gif.gif');
+      const gifFile = fs.createReadStream('/tmp/compressedGif.gif');
       await s3
         .upload({
           Body: gifFile,
           Bucket: process.env.DestinationBucket,
           Key: S3KeyGif,
           ContentType: 'image/gif',
-          ACL: 'public-read'
+          // ACL: 'public-read'
         })
         .promise();
     } else {
-      console.log('file not exist')
+      console.log('file not exist');
     }
     // Upload the GIF to S3
   } catch (err) {
@@ -108,6 +145,9 @@ const ffmpegJob = async (record) => {
 
 exports.handler = async (event) => {
   for (let i = 0; i < event.Records.length; i++) {
-    await Promise.all([mediaConvertJob(event.Records[i]), ffmpegJob(event.Records[i])]);
+    await Promise.all([
+      mediaConvertJob(event.Records[i]),
+      ffmpegJob(event.Records[i]),
+    ]);
   }
 };
