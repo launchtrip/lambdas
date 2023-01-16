@@ -42,7 +42,14 @@
             "OutputGroupSettings": {
                 "Type": "FILE_GROUP_SETTINGS",
                 "FileGroupSettings": {
-                    "Destination": "s3://<MEDIABUCKET>/assets/VANLIFE/MP4/"
+                    "Destination": "s3://<MEDIABUCKET>/assets/VANLIFE/MP4/",
+                    "DestinationSettings": {
+                        "S3Settings": {
+                            "AccessControl": {
+                                "CannedAcl": "PUBLIC_READ"
+                            }
+                        }
+                    }
                 }
             }
         },

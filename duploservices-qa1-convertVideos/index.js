@@ -94,6 +94,7 @@ const ffmpegJob = async (record) => {
           Bucket: process.env.DestinationBucket,
           Key: S3KeyGif,
           ContentType: 'image/gif',
+          ACL: 'public-read'
         })
         .promise();
     } else {
