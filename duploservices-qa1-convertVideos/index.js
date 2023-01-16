@@ -96,11 +96,11 @@ const ffmpegJob = async (record) => {
     await new Promise((resolve, reject) => {
       console.log('outputFile', outputFile);
       ffmpeg(video)
-        .setDuration(1)
+        .setDuration(1.5)
         .withAspect('16:9')
         .addOutputOptions(
           '-filter:v',
-          '[0:v] fps=15,scale=540:-1:flags=lanczos,split [a][b];[a] palettegen [p];[b][p] paletteuse'
+          '[0:v] fps=20,scale=300:-1:flags=lanczos,split [a][b];[a] palettegen [p];[b][p] paletteuse'
         )
         .format('gif')
         .fps(10)

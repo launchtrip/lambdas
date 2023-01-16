@@ -55,8 +55,6 @@ export const jobSettings = {
             Container: 'RAW',
           },
           VideoDescription: {
-            Width: 1280,
-            Height: 750,
             CodecSettings: {
               Codec: 'FRAME_CAPTURE',
               FrameCaptureSettings: {
