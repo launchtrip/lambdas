@@ -61,7 +61,7 @@ export const jobSettings = {
                 FramerateNumerator: 60,
                 FramerateDenominator: 1,
                 MaxCaptures: 1,
-                Quality: 80,
+                Quality: 100,
               },
             },
           },

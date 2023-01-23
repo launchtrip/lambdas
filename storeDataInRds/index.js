@@ -11,18 +11,35 @@ exports.handler = async (event) => {
 
     const fileExtension = sourceS3FileName.split('.')[1];
 
-    console.log({ sourceS3FileName, sourceS3BucketName, folderName, fileExtension });
+    const folderTypeName = sourceS3FileName.split('/')[1];
+    console.log({
+      sourceS3FileName,
+      sourceS3BucketName,
+      folderName,
+      fileExtension,
+      folderTypeName,
+    });
 
-    const attributeName = fileExtension === 'mp4' ? 'videoUrl' : fileExtension === 'gif' ? 'animatedGifUrl' : 'thumbnailUrl';
+    if (folderTypeName !== 'OverWriteThumbnail') {
+      const attributeName =
+        fileExtension === 'mp4'
+          ? 'videoUrl'
+          : fileExtension === 'gif'
+          ? 'animatedGifUrl'
+          : 'thumbnailUrl';
 
-    const fileUrl = `https://${sourceS3BucketName}.s3.${s3Object.awsRegion}.amazonaws.com/${sourceS3FileName}`;
-    try {
-      const { data } = await axios.patch(`https://qa-app-be.launchtrip.com/events/v2/public/videos/media/${folderName}`, {
-        [attributeName]: fileUrl,
-      });
-      console.log('video updated successfully', data);
-    } catch (err) {
-      console.log('Error in update video information', err);
+      const fileUrl = `https://${sourceS3BucketName}.s3.${s3Object.awsRegion}.amazonaws.com/${sourceS3FileName}`;
+      try {
+        const { data } = await axios.patch(
+          `https://qa-app-be.launchtrip.com/events/v2/public/videos/media/${folderName}`,
+          {
+            [attributeName]: fileUrl,
+          }
+        );
+        console.log('video updated successfully', data);
+      } catch (err) {
+        console.log('Error in update video information', err);
+      }
     }
   }
 };
